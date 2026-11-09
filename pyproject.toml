@@ -1,0 +1,43 @@
+[project]
+name = "cardioseg"
+version = "0.1.0"
+description = "2D U-Net segmentation of the heart in cardiac MRI (ACDC), with clinical metrics and uncertainty estimates."
+readme = "README.md"
+authors = [
+    { name = "Victoria Liu", email = "victorialiu444@gmail.com" }
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "nibabel>=5.4.2",
+    "numpy>=2.5.4",
+    "scipy>=1.18.1",
+    "torch>=2.15.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+environments = [
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "pytest>=9.2.0",
+    "ruff>=0.17.4",
+]
