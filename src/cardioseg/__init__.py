@@ -1,0 +1,1 @@
+"""cardioseg: cardiac MRI segmentation on the ACDC dataset."""
