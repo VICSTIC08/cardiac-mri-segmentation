@@ -1,7 +1,7 @@
 .env
 .venv/
 __pycache__/
-data/
-checkpoints/
+/data/
+/checkpoints/
 *.pt
 .DS_Store
