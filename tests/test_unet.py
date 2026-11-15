@@ -2,7 +2,7 @@
 
 import torch
 
-from cardioseg.models.unet import UNet
+from cardioseg.models.unet import ResidualBlock, UNet
 
 
 def test_output_has_one_score_map_per_class():
@@ -26,3 +26,18 @@ def test_every_layer_can_learn():
     model(torch.randn(2, 1, 64, 64)).sum().backward()
     for name, param in model.named_parameters():
         assert param.grad is not None, f"{name} got no gradient"
+
+
+def test_residual_unet_has_the_same_output_shape():
+    model = UNet(base_channels=8, residual=True)
+    assert model(torch.randn(2, 1, 224, 224)).shape == (2, 4, 224, 224)
+
+
+def test_residual_block_passes_its_input_through_when_it_has_learned_nothing():
+    """If the convolutions add nothing, the shortcut still delivers x: output = ReLU(0 + x)."""
+    block = ResidualBlock(8, 8)
+    for param in block.layers.parameters():
+        torch.nn.init.zeros_(param)
+    block.eval()
+    x = torch.randn(1, 8, 16, 16)
+    assert torch.allclose(block(x), torch.relu(x))
