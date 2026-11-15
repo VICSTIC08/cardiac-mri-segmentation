@@ -2,7 +2,7 @@
 
 import torch
 
-from cardioseg.models.unet import ResidualBlock, UNet
+from cardioseg.models.unet import AttentionGate, ResidualBlock, UNet
 
 
 def test_output_has_one_score_map_per_class():
@@ -41,3 +41,22 @@ def test_residual_block_passes_its_input_through_when_it_has_learned_nothing():
     block.eval()
     x = torch.randn(1, 8, 16, 16)
     assert torch.allclose(block(x), torch.relu(x))
+
+
+def test_attention_unet_has_the_same_output_shape():
+    model = UNet(base_channels=8, attention=True)
+    assert model(torch.randn(2, 1, 224, 224)).shape == (2, 4, 224, 224)
+
+
+def test_attention_gate_scores_every_pixel_between_0_and_1():
+    gate = AttentionGate(16)
+    decoder, skip = torch.randn(2, 16, 28, 28), torch.randn(2, 16, 28, 28)
+    gated = gate(decoder, skip)
+    assert gated.shape == skip.shape
+    assert gate.last_map.shape == (2, 1, 28, 28)  # one score per pixel
+    assert gate.last_map.min() >= 0 and gate.last_map.max() <= 1
+
+
+def test_all_options_together():
+    model = UNet(base_channels=8, residual=True, attention=True)
+    assert model(torch.randn(1, 1, 64, 64)).shape == (1, 4, 64, 64)
