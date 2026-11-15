@@ -8,6 +8,7 @@ Shapes for one 224x224 slice with base_channels=32:
 
 Options (each one becomes a row in the ablation table):
     residual=True   use ResidualBlock instead of ConvBlock everywhere
+    attention=True  put an AttentionGate on every skip connection
 """
 
 import torch
@@ -63,6 +64,29 @@ class ResidualBlock(nn.Module):
         return self.relu(self.layers(x) + self.shortcut(x))
 
 
+class AttentionGate(nn.Module):
+    """Decides, pixel by pixel, how much of a skip connection to let through.
+
+    The decoder (which already knows roughly WHAT is where) looks at the encoder's sharp
+    skip map and scores every pixel between 0 (ignore) and 1 (keep). The skip map is then
+    multiplied by those scores, so background detail is turned down before it is used.
+    """
+
+    def __init__(self, channels: int):
+        super().__init__()
+        middle = max(channels // 2, 1)
+        self.from_decoder = nn.Conv2d(channels, middle, kernel_size=1)
+        self.from_skip = nn.Conv2d(channels, middle, kernel_size=1)
+        self.to_score = nn.Conv2d(middle, 1, kernel_size=1)
+        self.last_map: torch.Tensor | None = None  # kept so we can look at it later
+
+    def forward(self, decoder: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
+        combined = torch.relu(self.from_decoder(decoder) + self.from_skip(skip))
+        attention = torch.sigmoid(self.to_score(combined))  # (B, 1, H, W), each in 0..1
+        self.last_map = attention.detach()
+        return skip * attention  # the 1 channel is reused for every skip channel
+
+
 class UNet(nn.Module):
     def __init__(
         self,
@@ -70,6 +94,7 @@ class UNet(nn.Module):
         num_classes: int = 4,
         base_channels: int = 32,
         residual: bool = False,
+        attention: bool = False,
     ):
         super().__init__()
         c = base_channels
@@ -93,6 +118,18 @@ class UNet(nn.Module):
         self.up1 = nn.ConvTranspose2d(c * 2, c, kernel_size=2, stride=2)
         self.dec1 = Block(c * 2, c)
 
+        # Optional attention gates, one per skip connection (deepest first).
+        self.attention = attention
+        if attention:
+            self.gates = nn.ModuleList(
+                [
+                    AttentionGate(c * 8),
+                    AttentionGate(c * 4),
+                    AttentionGate(c * 2),
+                    AttentionGate(c),
+                ]
+            )
+
         # 1x1 convolution: turns c feature maps into one score map per class.
         self.head = nn.Conv2d(c, num_classes, kernel_size=1)
 
@@ -103,9 +140,22 @@ class UNet(nn.Module):
         e4 = self.enc4(self.pool(e3))
         b = self.bottom(self.pool(e4))
 
+        # Decoder: upsample, (optionally) gate the skip, stack them, convolve.
         # torch.cat(..., dim=1) stacks along the channel dimension: the skip connection.
-        d4 = self.dec4(torch.cat([self.up4(b), e4], dim=1))
-        d3 = self.dec3(torch.cat([self.up3(d4), e3], dim=1))
-        d2 = self.dec2(torch.cat([self.up2(d3), e2], dim=1))
-        d1 = self.dec1(torch.cat([self.up1(d2), e1], dim=1))
+        u4 = self.up4(b)
+        d4 = self.dec4(torch.cat([u4, self.gated_skip(0, u4, e4)], dim=1))
+        u3 = self.up3(d4)
+        d3 = self.dec3(torch.cat([u3, self.gated_skip(1, u3, e3)], dim=1))
+        u2 = self.up2(d3)
+        d2 = self.dec2(torch.cat([u2, self.gated_skip(2, u2, e2)], dim=1))
+        u1 = self.up1(d2)
+        d1 = self.dec1(torch.cat([u1, self.gated_skip(3, u1, e1)], dim=1))
         return self.head(d1)
+
+    def gated_skip(
+        self, level: int, decoder: torch.Tensor, skip: torch.Tensor
+    ) -> torch.Tensor:
+        """With attention on, filter the skip map through its gate; otherwise pass it unchanged."""
+        if self.attention:
+            return self.gates[level](decoder, skip)
+        return skip
