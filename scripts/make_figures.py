@@ -1,7 +1,7 @@
 """Make the README figures from saved results (no GPU needed, runs in seconds).
 
 Run from the repo root:
-    uv run python scripts/make_figures.py --metrics checkpoints/row4_dice/val_metrics.csv
+    uv run python scripts/make_figures.py --metrics checkpoints/row4_dice/test_metrics_postprocessed.csv
 
 Writes into figures/:
     loss_curves.png    train and validation loss per epoch for every ablation run
@@ -79,12 +79,12 @@ def ef_agreement(metrics: Path, out_dir: Path) -> None:
     left.legend()
 
     right.scatter(mean, diff)
-    right.axhline(bias, color="black", label=f"bias {bias:+.1f}%")
+    right.axhline(bias, color="black", label=f"bias {bias:+.1f} points")
     for line in (low, high):
         right.axhline(line, color="gray", linestyle="--")
     right.set_xlabel("mean of model and doctors (%)")
-    right.set_ylabel("model - doctors (%)")
-    right.set_title(f"Bland-Altman: 95% of errors within {low:+.1f} to {high:+.1f}%")
+    right.set_ylabel("model - doctors (percentage points)")
+    right.set_title(f"Bland-Altman: 95% limits of agreement {low:+.1f} to {high:+.1f}")
     right.legend()
     fig.tight_layout()
     fig.savefig(out_dir / "ef_agreement.png", dpi=150)

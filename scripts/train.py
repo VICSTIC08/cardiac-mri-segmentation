@@ -7,6 +7,7 @@ Run from the repo root, e.g.:
 Each run writes to checkpoints/<name>/:
     best.pt       the weights from the epoch with the lowest validation loss
     history.csv   train and validation loss for every epoch (for the loss-curve plot)
+    config.json   the exact settings of the run
 """
 
 import argparse
