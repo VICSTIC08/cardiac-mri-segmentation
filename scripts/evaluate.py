@@ -1,11 +1,13 @@
-"""Score a trained model on the validation patients: Dice, HD95 and the heart measurements.
+"""Score a trained model: Dice, HD95 and the heart measurements, patient by patient.
 
 Run from the repo root, e.g.:
-    uv run python scripts/evaluate.py --name row1_plain
+    uv run python scripts/evaluate.py --name row1_plain                  (validation)
+    uv run python scripts/evaluate.py --name row4_dice --split test --data-dir data/acdc/testing --postprocess
 
 Everything is measured in each patient's ORIGINAL scan grid (true mm and mL), for both
-time points (ED = heart fullest, ES = heart emptiest). Writes checkpoints/<name>/val_metrics.csv
-with one row per patient, and prints a summary table.
+time points (ED = heart fullest, ES = heart emptiest). Writes
+checkpoints/<name>/<split>_metrics[_postprocessed].csv with one row per patient, and prints a
+summary table. The test split is for one final evaluation only.
 """
 
 import argparse

@@ -1,10 +1,10 @@
 [project]
 name = "cardioseg"
 version = "0.1.0"
-description = "2D U-Net segmentation of the heart in cardiac MRI (ACDC), with clinical metrics and uncertainty estimates."
+description = "2D U-Net segmentation of the heart in cardiac MRI (ACDC), with ejection fraction, volumes and myocardial mass."
 readme = "README.md"
 authors = [
-    { name = "Victoria Liu", email = "victorialiu444@gmail.com" }
+    { name = "Victoria Liu" }
 ]
 requires-python = ">=3.12,<3.13"
 dependencies = [
