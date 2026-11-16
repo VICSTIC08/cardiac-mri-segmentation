@@ -62,3 +62,7 @@ def test_volume_and_ejection_fraction_known_answers():
         volume_ml(mask, 3, spacing=(2.0, 2.0, 5.0)), 2.0
     )  # 100 x 20 mm^3
     assert math.isclose(ejection_fraction(edv=150.0, esv=60.0), 60.0)
+
+
+def test_ejection_fraction_is_nan_when_no_ventricle_was_found():
+    assert math.isnan(ejection_fraction(edv=0.0, esv=0.0))
