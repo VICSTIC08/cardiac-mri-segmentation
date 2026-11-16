@@ -7,6 +7,7 @@ numbers) live in the ORIGINAL scan grid. So every prediction goes back the way i
 
 import numpy as np
 import torch
+from scipy.ndimage import label as find_blobs
 from torch import nn
 
 from cardioseg.data.acdc import Scan
@@ -65,6 +66,24 @@ def predict_scan(model: nn.Module, scan: Scan, device: torch.device) -> np.ndarr
 
     labels = uncrop(labels, resampled.shape[:2])
     return resize_nearest(labels, scan.image.shape[:2])
+
+
+def keep_largest_blob(labels: np.ndarray) -> np.ndarray:
+    """For each structure, keep only its biggest connected 3D blob and erase stray islands.
+
+    A heart has ONE left ventricle, ONE right ventricle and ONE myocardium, so any extra
+    disconnected patch (e.g. "RV" painted in the liver) must be a mistake.
+    """
+    cleaned = np.zeros_like(labels)
+    for value in np.unique(labels):
+        if value == 0:
+            continue
+        blobs, count = find_blobs(labels == value)
+        if count == 0:
+            continue
+        sizes = np.bincount(blobs.ravel())[1:]  # voxels in blob 1, 2, 3, ...
+        cleaned[blobs == sizes.argmax() + 1] = value
+    return cleaned
 
 
 def volume_ml(mask: np.ndarray, label: int, spacing: tuple[float, ...]) -> float:

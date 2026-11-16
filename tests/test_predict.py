@@ -10,6 +10,7 @@ from cardioseg.data.preprocessing import center_crop_or_pad, resample_in_plane
 from cardioseg.evaluation.metrics import dice
 from cardioseg.evaluation.predict import (
     ejection_fraction,
+    keep_largest_blob,
     predict_scan,
     resize_nearest,
     uncrop,
@@ -66,3 +67,14 @@ def test_volume_and_ejection_fraction_known_answers():
 
 def test_ejection_fraction_is_nan_when_no_ventricle_was_found():
     assert math.isnan(ejection_fraction(edv=0.0, esv=0.0))
+
+
+def test_keep_largest_blob_removes_stray_islands():
+    labels = np.zeros((40, 40, 4), dtype=np.uint8)
+    labels[10:20, 10:20, 1:3] = 1  # the real RV: 200 voxels
+    labels[35:37, 35:37, 0] = 1  # a stray "RV" island far away: 4 voxels
+    labels[22:30, 22:30, 1:3] = 3  # the LV, untouched
+    cleaned = keep_largest_blob(labels)
+    assert cleaned[36, 36, 0] == 0  # island erased
+    assert (cleaned == 1).sum() == 200  # real RV kept
+    assert (cleaned == 3).sum() == (labels == 3).sum()  # other structures unchanged

@@ -22,6 +22,7 @@ from cardioseg.evaluation.metrics import dice, hd95
 from cardioseg.evaluation.predict import (
     MYOCARDIUM_DENSITY_G_PER_ML,
     ejection_fraction,
+    keep_largest_blob,
     predict_scan,
     volume_ml,
 )
@@ -41,6 +42,11 @@ def parse_args() -> argparse.Namespace:
         "--split", default="val", help="which split to score (val; test only ONCE)"
     )
     p.add_argument(
+        "--postprocess",
+        action="store_true",
+        help="keep only the largest blob per structure",
+    )
+    p.add_argument(
         "--limit", type=int, default=None, help="only score the first N patients"
     )
     p.add_argument("--data-dir", type=Path, default=REPO / "data" / "acdc" / "training")
@@ -56,13 +62,17 @@ def load_model(run_dir: Path, device: torch.device) -> UNet:
     return model.to(device)
 
 
-def score_patient(model: UNet, patient_dir: Path, device: torch.device) -> dict:
+def score_patient(
+    model: UNet, patient_dir: Path, device: torch.device, postprocess: bool = False
+) -> dict:
     """All metrics for one patient, comparing the model's masks with the doctors' masks."""
     patient = load_patient(patient_dir)
     row = {"patient": patient.patient_id, "group": patient.group}
     volumes = {}
     for phase, scan in (("ED", patient.ed), ("ES", patient.es)):
         pred = predict_scan(model, scan, device)
+        if postprocess:
+            pred = keep_largest_blob(pred)
         for name, label in STRUCTURES.items():
             row[f"{phase}_{name}_dice"] = dice(pred == label, scan.mask == label)
             row[f"{phase}_{name}_hd95"] = hd95(
@@ -123,7 +133,7 @@ def main() -> None:
 
     rows = []
     for i, patient_id in enumerate(patient_ids, 1):
-        row = score_patient(model, args.data_dir / patient_id, device)
+        row = score_patient(model, args.data_dir / patient_id, device, args.postprocess)
         rows.append(row)
         print(
             f"[{i:2d}/{len(patient_ids)}] {patient_id} ({row['group']})  "
@@ -131,7 +141,8 @@ def main() -> None:
             f"LV EF {row['LV_EF_pred']:.1f}% (true {row['LV_EF_true']:.1f}%)"
         )
 
-    out_file = run_dir / f"{args.split}_metrics.csv"
+    suffix = "_postprocessed" if args.postprocess else ""
+    out_file = run_dir / f"{args.split}_metrics{suffix}.csv"
     with open(out_file, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
