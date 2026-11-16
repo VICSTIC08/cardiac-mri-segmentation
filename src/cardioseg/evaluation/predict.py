@@ -73,5 +73,10 @@ def volume_ml(mask: np.ndarray, label: int, spacing: tuple[float, ...]) -> float
 
 
 def ejection_fraction(edv: float, esv: float) -> float:
-    """Percent of the blood pumped out per beat: (fullest - emptiest) / fullest x 100."""
+    """Percent of the blood pumped out per beat: (fullest - emptiest) / fullest x 100.
+
+    NaN if the ED volume is 0 (the model found no ventricle at all), instead of crashing.
+    """
+    if edv == 0:
+        return float("nan")
     return 100.0 * (edv - esv) / edv
