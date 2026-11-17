@@ -17,6 +17,10 @@ On the 50 held-out ACDC test patients, evaluated once after all choices were mad
 
 *Left: left-ventricular EF from the model vs from the experts' masks, one dot per test patient. Right: Bland-Altman plot of the differences. On average the model reads 1.5 points high, and 95% of differences are expected to fall between -5.2 and +8.2 points.*
 
+![The model's outlines next to the experts' on one test patient from each diagnosis group](figures/test_gallery.png)
+
+*One held-out test patient from each of the five diagnosis groups, at end-diastole, mid-ventricle. No patient was hand-picked: each row is the patient with the median mean Dice in its group, so these are typical results, not the best ones. The hypertrophic cardiomyopathy row shows a real failure: the model misses part of the right ventricle.*
+
 **Contents:** [What it does](#what-it-does) · [Results](#results-test-set) · [Ablation](#ablation-study-validation-set) · [Design decisions](#design-decisions) · [Testing](#testing) · [Reproduce](#reproduce) · [Limitations](#limitations) · [Roadmap](#roadmap-v2) · [Data, citation and licence](#data-citation-and-licence)
 
 Full experiment log: [EXPERIMENTS.md](EXPERIMENTS.md). Per-patient results: [results/](results/).
@@ -86,6 +90,10 @@ What these numbers do and don't show:
 - **By diagnosis group,** LV EF mean absolute error ranges from 1.8 points (abnormal right ventricle) to 3.4 points (hypertrophic cardiomyopathy, where the thickened muscle squeezes the cavity to a slit at end-systole). The largest single LV EF error is 9.0 points (patient138, hypertrophic cardiomyopathy: 78.0% vs 69.0%).
 - **The right ventricle is the weakest structure, especially at end-systole.** One patient dominates the RV EF error: patient120 (previous heart attack) reads 77.5% vs 46.5%, because the model found only 11.0 mL of RV at end-systole where the experts drew 32.0 mL (ES RV Dice 0.472). Without this patient, the RV EF correlation is 0.883. EF divides by the volumes, so a small RV error at end-systole becomes a large EF error.
 - **Post-processing was roughly neutral on the test set** (LV Dice 0.945 raw vs 0.943 post-processed, LV EF error 2.3 vs 2.5 points), and the details show its trade-off. It fixed one stray right-ventricle prediction (patient135), but for patient142 (hypertrophic cardiomyopathy) the model's end-systolic LV came out in separate pieces and the filter deleted a real one: ES LV Dice fell from 0.899 to 0.673. That single patient accounts for the entire drop in mean LV Dice. Raw test numbers are in [EXPERIMENTS.md](EXPERIMENTS.md#raw-vs-post-processed-test-results).
+
+![One test patient from base to apex, at end-diastole and end-systole](figures/heartbeat_stack.png)
+
+*The model's outlines on one normal test patient (patient130), from the base of the heart to the apex, when the heart is fullest (ED, top) and most squeezed (ES, bottom). The ventricles shrink as the heart contracts, which is exactly what the ejection fraction measures. The base is the hardest part: at ES the heart pulls down through the slices, so the first slice holds no ventricle (the experts drew nothing there either), and in the second the model draws only part of the myocardium and misses a small left ventricle that the experts outlined.*
 
 ## Ablation study (validation set)
 
@@ -225,6 +233,22 @@ notebooks/      01: dataset exploration and a first EF by hand; 02: convolution 
 results/        ablation table, test summary, per-patient metrics
 figures/        the plots in this README
 ```
+
+## From the build notebooks
+
+Three snapshots from the notebooks in [notebooks/](notebooks/), kept as they were made.
+
+![First look at the data: one ACDC slice and the experts' labels](figures/build/01_first_look.png)
+
+*Day 2, [01_explore_acdc.ipynb](notebooks/01_explore_acdc.ipynb): the first patient loaded from the raw NIfTI files, with the experts' labels overlaid. The same notebook computes a first ejection fraction by hand from the masks.*
+
+![A hand-written 3x3 vertical-edge filter applied to an MRI slice](figures/build/02_edge_filter.png)
+
+*[02_how_a_network_sees.ipynb](notebooks/02_how_a_network_sees.ipynb): one hand-written 3x3 edge filter run with `conv2d`. Every convolution layer in the U-Net does this same operation, with filters it learns instead of filters written by hand. Red and blue are opposite edge directions.*
+
+![First plain U-Net: MRI, experts' mask and prediction on a validation patient](figures/build/03_first_baseline.png)
+
+*The first trained model (plain U-Net, cross-entropy only, row 1 of the ablation) on three slices of a validation patient it never trained on. Already close to the experts; the final model's results are in the gallery above.*
 
 ## Limitations
 
