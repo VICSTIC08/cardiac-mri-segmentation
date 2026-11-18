@@ -17,7 +17,7 @@ On the 50 held-out ACDC test patients, evaluated once after all choices were mad
 
 *Left: left-ventricular EF from the model vs from the experts' masks, one dot per test patient. Right: Bland-Altman plot of the differences. On average the model reads 1.5 points high, and 95% of differences are expected to fall between -5.2 and +8.2 points.*
 
-![The model's outlines next to the experts' on one test patient from each diagnosis group](figures/test_gallery.png)
+<p align="center"><img src="figures/test_gallery.png" width="62%" alt="The model's outlines next to the experts' on one test patient from each diagnosis group"></p>
 
 *One held-out test patient from each of the five diagnosis groups, at end-diastole, mid-ventricle. No patient was hand-picked: each row is the patient with the median mean Dice in its group, so these are typical results, not the best ones. The hypertrophic cardiomyopathy row shows a real failure: the model misses part of the right ventricle.*
 
